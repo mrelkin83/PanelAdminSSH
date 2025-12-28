@@ -146,6 +146,9 @@ NODE_ENV=production
 # Logs
 LOG_LEVEL=info
 
+# CORS (permitir todos los orígenes para desarrollo local)
+CORS_ORIGIN=*
+
 # Admin credentials (for seed)
 ADMIN_EMAIL="${ADMIN_EMAIL}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD}"
@@ -165,6 +168,10 @@ npx prisma db push --accept-data-loss
 # Crear usuario admin con seed
 print_message "Creando usuario administrador..."
 npx prisma db seed
+
+# Compilar backend para producción
+print_message "Compilando backend..."
+npm run build
 
 print_success "Backend configurado"
 
@@ -213,6 +220,7 @@ cd "$INSTALL_DIR/frontend"
 
 # Crear archivo .env con el dominio del backend
 cat > .env << EOF
+VITE_API_BASE_URL=${BACKEND_PROTOCOL}://${BACKEND_DOMAIN}/api
 VITE_API_URL=${BACKEND_PROTOCOL}://${BACKEND_DOMAIN}/api/v1
 EOF
 
