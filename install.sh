@@ -89,7 +89,7 @@ fi
 print_message "Paso 5/10: Configurando base de datos..."
 DB_NAME="paneladminssh"
 DB_USER="adminssh"
-DB_PASS="AdminSSH2024*#"
+DB_PASS="AdminSSH2024Pass"
 
 # Eliminar base de datos y usuario si ya existen
 print_message "Limpiando base de datos anterior si existe..."
