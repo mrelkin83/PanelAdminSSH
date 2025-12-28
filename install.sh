@@ -89,12 +89,19 @@ fi
 print_message "Paso 5/10: Configurando base de datos..."
 DB_NAME="paneladminssh"
 DB_USER="adminssh"
-DB_PASS=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-16)
+DB_PASS="AdminSSH2024*#"
 
-sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME};" 2>/dev/null || true
-sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';" 2>/dev/null || true
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" 2>/dev/null || true
-sudo -u postgres psql -c "ALTER DATABASE ${DB_NAME} OWNER TO ${DB_USER};" 2>/dev/null || true
+# Eliminar base de datos y usuario si ya existen
+print_message "Limpiando base de datos anterior si existe..."
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>/dev/null || true
+sudo -u postgres psql -c "DROP USER IF EXISTS ${DB_USER};" 2>/dev/null || true
+
+# Crear base de datos y usuario nuevos
+print_message "Creando base de datos y usuario..."
+sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME};"
+sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
+sudo -u postgres psql -c "ALTER DATABASE ${DB_NAME} OWNER TO ${DB_USER};"
 
 print_success "Base de datos configurada"
 
