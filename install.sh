@@ -152,9 +152,9 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD}"
 ADMIN_NAME="${ADMIN_NAME}"
 EOF
 
-# Instalar dependencias
+# Instalar dependencias (incluyendo devDependencies para tsx)
 print_message "Instalando dependencias del backend..."
-npm install
+npm install --include=dev
 
 print_message "Generando Prisma Client..."
 npx prisma generate
