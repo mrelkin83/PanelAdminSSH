@@ -204,13 +204,42 @@ npx prisma db seed > /dev/null 2>&1
 
 print_success "Backend configurado"
 
-# 8. Configurar Frontend
-print_message "Paso 8/10: Configurando frontend..."
+# 8. Configurar dominios
+print_message "Paso 8/10: Configurando dominios..."
+echo
+print_message "Configuración de subdominios (opcional, presiona Enter para usar localhost)"
+echo
+
+print_message "Ingresa el subdominio para el BACKEND (ej: api.tudominio.com) [localhost]:"
+read -p "> " BACKEND_DOMAIN
+BACKEND_DOMAIN=${BACKEND_DOMAIN:-localhost}
+
+print_message "Ingresa el subdominio para el FRONTEND (ej: app.tudominio.com) [localhost]:"
+read -p "> " FRONTEND_DOMAIN
+FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-localhost}
+
+# Determinar protocolo (http o https)
+if [ "$BACKEND_DOMAIN" != "localhost" ]; then
+    BACKEND_PROTOCOL="https"
+else
+    BACKEND_PROTOCOL="http"
+fi
+
+if [ "$FRONTEND_DOMAIN" != "localhost" ]; then
+    FRONTEND_PROTOCOL="https"
+else
+    FRONTEND_PROTOCOL="http"
+fi
+
+print_success "Dominios configurados"
+
+# 9. Configurar Frontend
+print_message "Paso 9/10: Configurando frontend..."
 cd "$INSTALL_DIR/frontend"
 
-# Crear archivo .env
+# Crear archivo .env con el dominio del backend
 cat > .env << EOF
-VITE_API_URL=http://localhost:5000/api/v1
+VITE_API_URL=${BACKEND_PROTOCOL}://${BACKEND_DOMAIN}/api/v1
 EOF
 
 npm install -qq > /dev/null 2>&1
@@ -218,8 +247,8 @@ npm run build > /dev/null 2>&1
 
 print_success "Frontend configurado"
 
-# 9. Crear servicios systemd
-print_message "Paso 9/10: Creando servicios systemd..."
+# 10. Crear servicios systemd
+print_message "Paso 10/11: Creando servicios systemd..."
 
 # Servicio Backend
 cat > /etc/systemd/system/adminssh-backend.service << EOF
@@ -264,43 +293,76 @@ systemctl start adminssh-backend adminssh-frontend
 
 print_success "Servicios systemd creados y activados"
 
-# 10. Configurar Nginx (opcional)
-print_message "Paso 10/10: ¿Desea instalar y configurar Nginx? (s/n)"
-read -p "> " INSTALL_NGINX
+# 11. Configurar Nginx
+print_message "Paso 11/11: Configurando Nginx..."
+apt-get install -y nginx -qq > /dev/null 2>&1
 
-if [ "$INSTALL_NGINX" = "s" ] || [ "$INSTALL_NGINX" = "S" ]; then
-    apt-get install -y nginx -qq > /dev/null 2>&1
-
-    cat > /etc/nginx/sites-available/adminssh << 'EOF'
+# Configuración del Backend
+cat > /etc/nginx/sites-available/adminssh-backend << EOF
 server {
     listen 80;
-    server_name _;
+    server_name ${BACKEND_DOMAIN};
 
-    # Frontend
     location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    # Backend API
-    location /api {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOF
 
-    ln -sf /etc/nginx/sites-available/adminssh /etc/nginx/sites-enabled/
-    rm -f /etc/nginx/sites-enabled/default
-    systemctl restart nginx
-    print_success "Nginx instalado y configurado"
+# Configuración del Frontend
+cat > /etc/nginx/sites-available/adminssh-frontend << EOF
+server {
+    listen 80;
+    server_name ${FRONTEND_DOMAIN};
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+# Activar configuraciones
+ln -sf /etc/nginx/sites-available/adminssh-backend /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/adminssh-frontend /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+
+# Verificar configuración de Nginx
+nginx -t > /dev/null 2>&1
+
+systemctl restart nginx
+print_success "Nginx configurado"
+
+# Configurar SSL si se usan dominios reales
+if [ "$BACKEND_DOMAIN" != "localhost" ] && [ "$FRONTEND_DOMAIN" != "localhost" ]; then
+    echo
+    print_message "¿Desea configurar SSL/HTTPS con Let's Encrypt? (s/n)"
+    read -p "> " INSTALL_SSL
+
+    if [ "$INSTALL_SSL" = "s" ] || [ "$INSTALL_SSL" = "S" ]; then
+        print_message "Instalando Certbot..."
+        apt-get install -y certbot python3-certbot-nginx -qq > /dev/null 2>&1
+
+        print_message "Configurando certificados SSL..."
+        certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN} --non-interactive --agree-tos --register-unsafely-without-email || {
+            print_warning "No se pudo configurar SSL automáticamente."
+            print_message "Ejecuta manualmente: certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN}"
+        }
+
+        # Configurar renovación automática
+        systemctl enable certbot.timer
+
+        print_success "SSL configurado"
+    fi
 fi
 
 # Resumen
@@ -314,8 +376,17 @@ echo
 print_success "Instalación completada!"
 echo
 echo -e "${BLUE}Información de acceso:${NC}"
-echo -e "  URL Frontend: ${GREEN}http://$(hostname -I | awk '{print $1}'):3000${NC}"
-echo -e "  URL Backend:  ${GREEN}http://$(hostname -I | awk '{print $1}'):5000${NC}"
+if [ "$FRONTEND_DOMAIN" != "localhost" ]; then
+    echo -e "  URL Frontend: ${GREEN}${FRONTEND_PROTOCOL}://${FRONTEND_DOMAIN}${NC}"
+else
+    echo -e "  URL Frontend: ${GREEN}http://$(hostname -I | awk '{print $1}'):3000${NC}"
+fi
+
+if [ "$BACKEND_DOMAIN" != "localhost" ]; then
+    echo -e "  URL Backend:  ${GREEN}${BACKEND_PROTOCOL}://${BACKEND_DOMAIN}${NC}"
+else
+    echo -e "  URL Backend:  ${GREEN}http://$(hostname -I | awk '{print $1}'):5000${NC}"
+fi
 echo
 echo -e "${BLUE}Credenciales de administrador:${NC}"
 echo -e "  Email:    ${GREEN}${ADMIN_EMAIL}${NC}"
@@ -339,5 +410,31 @@ echo -e "${BLUE}Soporte:${NC}"
 echo -e "  Telegram: ${GREEN}@MrELkin${NC}"
 echo -e "  WhatsApp: ${GREEN}+573124132002${NC}"
 echo
+
+# Notas adicionales si se configuraron dominios
+if [ "$BACKEND_DOMAIN" != "localhost" ] || [ "$FRONTEND_DOMAIN" != "localhost" ]; then
+    echo -e "${YELLOW}╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║                  CONFIGURACIÓN DNS                     ║${NC}"
+    echo -e "${YELLOW}╚═══════════════════════════════════════════════════════╝${NC}"
+    echo
+    echo -e "${BLUE}Asegúrate de configurar los registros DNS:${NC}"
+
+    if [ "$BACKEND_DOMAIN" != "localhost" ]; then
+        echo -e "  ${GREEN}${BACKEND_DOMAIN}${NC} → A record → ${GREEN}$(hostname -I | awk '{print $1}')${NC}"
+    fi
+
+    if [ "$FRONTEND_DOMAIN" != "localhost" ]; then
+        echo -e "  ${GREEN}${FRONTEND_DOMAIN}${NC} → A record → ${GREEN}$(hostname -I | awk '{print $1}')${NC}"
+    fi
+
+    echo
+    echo -e "${YELLOW}⚠ Los dominios deben apuntar a este servidor antes de que funcionen${NC}"
+
+    if [ "$INSTALL_SSL" = "s" ] || [ "$INSTALL_SSL" = "S" ]; then
+        echo -e "${YELLOW}⚠ SSL se configurará automáticamente una vez que los DNS estén propagados${NC}"
+    fi
+    echo
+fi
+
 print_message "¡Gracias por usar Panel AdminSSH!"
 echo
