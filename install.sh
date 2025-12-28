@@ -115,59 +115,11 @@ print_success "Repositorio clonado"
 print_message "Paso 7/10: Configurando backend..."
 cd "$INSTALL_DIR/backend"
 
-# Preguntar por credenciales personalizadas
-echo
-print_message "Configuración de credenciales de administrador"
-echo
-print_warning "¿Deseas usar credenciales personalizadas? (s/n) [n]"
-read -p "> " USE_CUSTOM_CREDS
-
-if [ "$USE_CUSTOM_CREDS" = "s" ] || [ "$USE_CUSTOM_CREDS" = "S" ]; then
-    echo
-    print_message "Ingresa el email del administrador:"
-    read -p "> " ADMIN_EMAIL
-
-    while [ -z "$ADMIN_EMAIL" ]; do
-        print_error "El email no puede estar vacío"
-        read -p "> " ADMIN_EMAIL
-    done
-
-    print_message "Ingresa la contraseña del administrador (mínimo 6 caracteres):"
-    read -s -p "> " ADMIN_PASSWORD
-    echo
-
-    while [ ${#ADMIN_PASSWORD} -lt 6 ]; do
-        print_error "La contraseña debe tener al menos 6 caracteres"
-        read -s -p "> " ADMIN_PASSWORD
-        echo
-    done
-
-    print_message "Confirma la contraseña:"
-    read -s -p "> " ADMIN_PASSWORD_CONFIRM
-    echo
-
-    while [ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]; do
-        print_error "Las contraseñas no coinciden. Intenta de nuevo."
-        print_message "Ingresa la contraseña:"
-        read -s -p "> " ADMIN_PASSWORD
-        echo
-        print_message "Confirma la contraseña:"
-        read -s -p "> " ADMIN_PASSWORD_CONFIRM
-        echo
-    done
-
-    print_message "Nombre del administrador (opcional) [Administrador]:"
-    read -p "> " ADMIN_NAME
-    ADMIN_NAME=${ADMIN_NAME:-Administrador}
-
-    print_success "Credenciales personalizadas configuradas"
-else
-    # Usar credenciales por defecto
-    ADMIN_EMAIL="admin@paneladminssh.com"
-    ADMIN_PASSWORD="Mayte2024*#"
-    ADMIN_NAME="Administrador"
-    print_success "Usando credenciales por defecto"
-fi
+# Usar credenciales por defecto
+ADMIN_EMAIL="admin@paneladminssh.com"
+ADMIN_PASSWORD="Mayte2024*#"
+ADMIN_NAME="Administrador"
+print_success "Credenciales configuradas"
 
 # Crear archivo .env
 cat > .env << EOF
@@ -194,29 +146,27 @@ ADMIN_NAME="${ADMIN_NAME}"
 EOF
 
 # Instalar dependencias
-npm install --production -qq > /dev/null 2>&1
-npx prisma generate > /dev/null 2>&1
-npx prisma migrate deploy > /dev/null 2>&1
+print_message "Instalando dependencias del backend..."
+npm install --production
+
+print_message "Generando Prisma Client..."
+npx prisma generate
+
+print_message "Sincronizando base de datos..."
+npx prisma db push --accept-data-loss
 
 # Crear usuario admin con seed
 print_message "Creando usuario administrador..."
-npx prisma db seed > /dev/null 2>&1
+npx prisma db seed
 
 print_success "Backend configurado"
 
 # 8. Configurar dominios
 print_message "Paso 8/11: Configurando dominios..."
-echo
-print_message "Configuración de subdominios (opcional, presiona Enter para usar localhost)"
-echo
 
-print_message "Ingresa el subdominio para el BACKEND (ej: api.tudominio.com) [localhost]:"
-read -p "> " BACKEND_DOMAIN
-BACKEND_DOMAIN=${BACKEND_DOMAIN:-localhost}
-
-print_message "Ingresa el subdominio para el FRONTEND (ej: app.tudominio.com) [localhost]:"
-read -p "> " FRONTEND_DOMAIN
-FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-localhost}
+# Usar localhost por defecto (puede editarse manualmente después)
+BACKEND_DOMAIN="localhost"
+FRONTEND_DOMAIN="localhost"
 
 # Determinar protocolo (http o https)
 if [ "$BACKEND_DOMAIN" != "localhost" ]; then
@@ -245,8 +195,11 @@ cat > .env << EOF
 VITE_API_URL=${BACKEND_PROTOCOL}://${BACKEND_DOMAIN}/api/v1
 EOF
 
-npm install -qq > /dev/null 2>&1
-npm run build > /dev/null 2>&1
+print_message "Instalando dependencias del frontend..."
+npm install
+
+print_message "Compilando frontend..."
+npm run build
 
 print_success "Frontend configurado"
 
@@ -298,7 +251,7 @@ print_success "Servicios systemd creados y activados"
 
 # 11. Configurar Nginx
 print_message "Paso 11/11: Configurando Nginx..."
-apt-get install -y nginx -qq > /dev/null 2>&1
+apt-get install -y nginx
 
 # Configuración del Backend
 cat > /etc/nginx/sites-available/adminssh-backend << EOF
@@ -340,33 +293,15 @@ ln -sf /etc/nginx/sites-available/adminssh-frontend /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Verificar configuración de Nginx
-nginx -t > /dev/null 2>&1
+print_message "Verificando configuración de Nginx..."
+nginx -t
 
+print_message "Reiniciando Nginx..."
 systemctl restart nginx
 print_success "Nginx configurado"
 
-# Configurar SSL si se usan dominios reales
-if [ "$BACKEND_DOMAIN" != "localhost" ] && [ "$FRONTEND_DOMAIN" != "localhost" ]; then
-    echo
-    print_message "¿Desea configurar SSL/HTTPS con Let's Encrypt? (s/n)"
-    read -p "> " INSTALL_SSL
-
-    if [ "$INSTALL_SSL" = "s" ] || [ "$INSTALL_SSL" = "S" ]; then
-        print_message "Instalando Certbot..."
-        apt-get install -y certbot python3-certbot-nginx -qq > /dev/null 2>&1
-
-        print_message "Configurando certificados SSL..."
-        certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN} --non-interactive --agree-tos --register-unsafely-without-email || {
-            print_warning "No se pudo configurar SSL automáticamente."
-            print_message "Ejecuta manualmente: certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN}"
-        }
-
-        # Configurar renovación automática
-        systemctl enable certbot.timer
-
-        print_success "SSL configurado"
-    fi
-fi
+# SSL omitido - puede configurarse manualmente después con:
+# certbot --nginx -d api.tudominio.com -d app.tudominio.com
 
 # Resumen
 echo
