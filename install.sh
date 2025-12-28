@@ -170,10 +170,24 @@ print_success "Backend configurado"
 
 # 8. Configurar dominios
 print_message "Paso 8/11: Configurando dominios..."
+echo
+print_message "════════════════════════════════════════════════════════"
+print_message "  CONFIGURACIÓN DE SUBDOMINIOS"
+print_message "════════════════════════════════════════════════════════"
+echo
+print_message "Si tienes subdominios configurados, ingrésalos aquí."
+print_message "Si no, presiona Enter para usar localhost (solo IP:puerto)"
+echo
 
-# Usar localhost por defecto (puede editarse manualmente después)
-BACKEND_DOMAIN="localhost"
-FRONTEND_DOMAIN="localhost"
+print_message "Subdominio para el BACKEND API (ej: api.tudominio.com):"
+read -p "> " BACKEND_DOMAIN
+
+print_message "Subdominio para el FRONTEND Panel (ej: panel.tudominio.com):"
+read -p "> " FRONTEND_DOMAIN
+
+# Usar localhost si no se ingresó nada
+BACKEND_DOMAIN=${BACKEND_DOMAIN:-localhost}
+FRONTEND_DOMAIN=${FRONTEND_DOMAIN:-localhost}
 
 # Determinar protocolo (http o https)
 if [ "$BACKEND_DOMAIN" != "localhost" ]; then
@@ -307,8 +321,42 @@ print_message "Reiniciando Nginx..."
 systemctl restart nginx
 print_success "Nginx configurado"
 
-# SSL omitido - puede configurarse manualmente después con:
-# certbot --nginx -d api.tudominio.com -d app.tudominio.com
+# Configurar SSL si se usan dominios reales
+if [ "$BACKEND_DOMAIN" != "localhost" ] && [ "$FRONTEND_DOMAIN" != "localhost" ]; then
+    echo
+    print_message "════════════════════════════════════════════════════════"
+    print_message "  CONFIGURACIÓN SSL/HTTPS"
+    print_message "════════════════════════════════════════════════════════"
+    echo
+    print_warning "IMPORTANTE: Los registros DNS deben estar configurados y propagados"
+    print_message "¿Deseas instalar certificados SSL con Let's Encrypt? (s/n)"
+    read -p "> " INSTALL_SSL
+
+    if [ "$INSTALL_SSL" = "s" ] || [ "$INSTALL_SSL" = "S" ]; then
+        print_message "Instalando Certbot..."
+        apt-get install -y certbot python3-certbot-nginx -qq > /dev/null 2>&1
+
+        print_message "Solicitando certificados SSL..."
+        certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN} --non-interactive --agree-tos --redirect --email noreply@${BACKEND_DOMAIN#*.} || {
+            print_warning "No se pudo configurar SSL automáticamente."
+            print_message "Esto puede deberse a:"
+            print_message "  1. Los DNS no están configurados correctamente"
+            print_message "  2. Los DNS no se han propagado aún"
+            print_message "Puedes configurar SSL manualmente después con:"
+            print_message "  certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN}"
+        }
+
+        # Configurar renovación automática
+        systemctl enable certbot.timer > /dev/null 2>&1
+
+        print_success "Configuración SSL completada"
+    else
+        print_message "SSL omitido. Puedes configurarlo después con:"
+        print_message "  certbot --nginx -d ${BACKEND_DOMAIN} -d ${FRONTEND_DOMAIN}"
+    fi
+else
+    INSTALL_SSL="n"
+fi
 
 # Resumen
 echo
