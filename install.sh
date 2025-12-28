@@ -107,7 +107,7 @@ if [ -d "$INSTALL_DIR" ]; then
     mv "$INSTALL_DIR" "${INSTALL_DIR}.backup.$(date +%Y%m%d%H%M%S)"
 fi
 
-git clone https://github.com/tu-usuario/PanelAdminSSH.git "$INSTALL_DIR" > /dev/null 2>&1
+git clone https://github.com/mrelkin83/PanelAdminSSH.git "$INSTALL_DIR" > /dev/null 2>&1
 cd "$INSTALL_DIR"
 print_success "Repositorio clonado"
 
