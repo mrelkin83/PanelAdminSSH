@@ -5,7 +5,7 @@
   "author": "@MrELkin <+573124132002>",
   "main": "dist/index.js",
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.ts"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
