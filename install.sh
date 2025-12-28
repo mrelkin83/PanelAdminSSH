@@ -205,7 +205,7 @@ npx prisma db seed > /dev/null 2>&1
 print_success "Backend configurado"
 
 # 8. Configurar dominios
-print_message "Paso 8/10: Configurando dominios..."
+print_message "Paso 8/11: Configurando dominios..."
 echo
 print_message "Configuración de subdominios (opcional, presiona Enter para usar localhost)"
 echo
@@ -231,10 +231,13 @@ else
     FRONTEND_PROTOCOL="http"
 fi
 
+# Inicializar variable SSL
+INSTALL_SSL="n"
+
 print_success "Dominios configurados"
 
 # 9. Configurar Frontend
-print_message "Paso 9/10: Configurando frontend..."
+print_message "Paso 9/11: Configurando frontend..."
 cd "$INSTALL_DIR/frontend"
 
 # Crear archivo .env con el dominio del backend
