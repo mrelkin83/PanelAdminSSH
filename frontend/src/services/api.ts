@@ -5,8 +5,8 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
-const API_V1_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_V1_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 // Cliente para API Core (v1) - 7 funciones esenciales
 export const apiClient = axios.create({
