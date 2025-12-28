@@ -154,7 +154,7 @@ EOF
 
 # Instalar dependencias
 print_message "Instalando dependencias del backend..."
-npm install --production
+npm install
 
 print_message "Generando Prisma Client..."
 npx prisma generate
