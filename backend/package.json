@@ -4,6 +4,9 @@
   "description": "Backend API para Panel AdminSSH - Sistema de gestión SSH by @MrELkin",
   "author": "@MrELkin <+573124132002>",
   "main": "dist/index.js",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
