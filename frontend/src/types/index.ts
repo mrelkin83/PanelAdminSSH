@@ -13,6 +13,11 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface LoginResponse {
+  token: string;
+  admin: Admin;
+}
+
 export interface VPS {
   id: string;
   name: string;
@@ -48,6 +53,8 @@ export interface SSHUser {
     id: string;
     name: string;
     host: string;
+    location?: string;
+    provider?: string;
   };
 }
 
@@ -59,6 +66,13 @@ export interface Connection {
   protocol?: string;
   connectedAt: string;
   disconnectedAt?: string;
+  vps?: {
+    id: string;
+    name: string;
+    host: string;
+    location?: string;
+    provider?: string;
+  };
 }
 
 export interface DashboardStats {

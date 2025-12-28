@@ -97,7 +97,7 @@ export default function MonitorImproved() {
   };
 
   // Obtener métricas de cada VPS
-  const { data: metricsMap = {}, isLoading, refetch } = useQuery<Record<string, VPSMetrics>>({
+  const { data: metricsMap = {}, isLoading } = useQuery<Record<string, VPSMetrics>>({
     queryKey: ['vps-metrics'],
     queryFn: async () => {
       const metrics: Record<string, VPSMetrics> = {};

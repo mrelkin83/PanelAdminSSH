@@ -30,7 +30,7 @@ export default function Users() {
   const [renewDays, setRenewDays] = useState(30);
 
   // Query: Listar usuarios
-  const { data: users = [], isLoading, refetch } = useQuery({
+  const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersService.getAllUsers(),
     refetchInterval: 10000, // Actualizar cada 10s

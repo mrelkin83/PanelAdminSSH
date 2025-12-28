@@ -13,7 +13,7 @@ import { Wifi, WifiOff, Activity, Clock, MapPin, Trash2, RotateCw, Server } from
 export default function Monitor() {
   const [selectedVpsId, setSelectedVpsId] = useState<string>('');
 
-  const { data: connections = [], isLoading, refetch } = useQuery({
+  const { data: connections = [], isLoading } = useQuery({
     queryKey: ['connections'],
     queryFn: () => monitorService.getConnections(),
     refetchInterval: 3000, // Actualizar cada 3 segundos

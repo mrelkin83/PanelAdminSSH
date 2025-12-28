@@ -53,7 +53,7 @@ export default function UsersImproved() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   // Queries
-  const { data: users = [], isLoading, refetch } = useQuery({
+  const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersService.getAllUsers(),
     refetchInterval: 10000,
@@ -611,19 +611,6 @@ function CreateUserModalImproved({
   const [days, setDays] = useState(30);
   const [maxConnections, setMaxConnections] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState('');
-
-  // Agrupar VPS por país
-  const vpsByCountry = useMemo(() => {
-    const grouped = new Map<string, typeof vpsList>();
-    vpsList.forEach(vps => {
-      const country = vps.location || 'Sin ubicación';
-      if (!grouped.has(country)) {
-        grouped.set(country, []);
-      }
-      grouped.get(country)!.push(vps);
-    });
-    return grouped;
-  }, [vpsList]);
 
   // Filtrar VPS por búsqueda
   const filteredVPS = useMemo(() => {
