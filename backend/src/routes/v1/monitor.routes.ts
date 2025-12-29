@@ -25,4 +25,34 @@ router.get('/connections', MonitorController.getConnections);
  */
 router.get('/stats', MonitorController.getStats);
 
+/**
+ * Historial de conexiones
+ * GET /api/v1/monitor/connections/history
+ */
+router.get('/connections/history', MonitorController.getConnectionHistory);
+
+/**
+ * Logs de acciones
+ * GET /api/v1/monitor/logs
+ */
+router.get('/logs', MonitorController.getActionLogs);
+
+/**
+ * Mantenimiento - Limpiar logs de VPS
+ * POST /api/v1/monitor/maintenance/clean-vps-logs
+ */
+router.post('/maintenance/clean-vps-logs', MonitorController.cleanVPSLogs);
+
+/**
+ * Mantenimiento - Reiniciar VPS
+ * POST /api/v1/monitor/maintenance/restart-vps
+ */
+router.post('/maintenance/restart-vps', MonitorController.restartVPS);
+
+/**
+ * Mantenimiento - Limpiar logs de la API
+ * POST /api/v1/monitor/maintenance/clean-api-logs
+ */
+router.post('/maintenance/clean-api-logs', MonitorController.cleanAPILogs);
+
 export default router;
