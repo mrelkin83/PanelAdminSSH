@@ -205,7 +205,7 @@ export default function AdminVPS() {
 
                       {vps.version && (
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Versión ADMRufu</p>
+                          <p className="text-xs text-gray-500 mb-1">Versión</p>
                           <p className="text-sm font-medium text-gray-900">{vps.version}</p>
                         </div>
                       )}

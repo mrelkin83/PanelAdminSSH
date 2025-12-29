@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ################################################################################
-# ADMRufu Panel - Auto-Instalador para VPS
+# Admin SSH Panel - Auto-Instalador para VPS
 #
 # Script de instalación automatizada para Ubuntu 20.04/22.04
-# Instala y configura el panel de administración ADMRufu
+# Instala y configura el panel de administración SSH
 #
 # Uso: curl -sSL [URL] | bash
 # o:   bash install-panel.sh
@@ -16,12 +16,12 @@ set -e  # Salir en caso de error
 # CONFIGURACIÓN
 # ============================================================================
 
-APP_NAME="admrufu-panel"
-APP_DIR="/opt/admrufu-panel"
-APP_USER="admrufu"
+APP_NAME="adminssh-panel"
+APP_DIR="/opt/adminssh-panel"
+APP_USER="adminssh"
 APP_PORT="3001"
 NODE_VERSION="20"
-LOG_FILE="/var/log/admrufu-panel-install.log"
+LOG_FILE="/var/log/adminssh-panel-install.log"
 INSTALLATION_MARKER="${APP_DIR}/.installed"
 
 # Colores para output

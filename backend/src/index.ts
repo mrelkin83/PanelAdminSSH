@@ -116,7 +116,7 @@ async function startServer() {
       logger.info(`
 ┌─────────────────────────────────────────────────────┐
 │                                                     │
-│   🚀 ADMRufu Panel Backend Server Started          │
+│   🚀 Admin SSH Panel Backend Server Started        │
 │                                                     │
 │   📡 Server: http://localhost:${config.PORT}            │
 │   🌍 Environment: ${config.NODE_ENV}                     │

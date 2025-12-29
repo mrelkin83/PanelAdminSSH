@@ -95,18 +95,6 @@ export class UsersController {
         });
       }
 
-      // Verificar límite de usuarios por VPS (máximo 400)
-      const userCount = await prisma.sSHUser.count({
-        where: { vpsId: data.vpsId },
-      });
-
-      if (userCount >= 400) {
-        return res.status(400).json({
-          success: false,
-          error: 'VPS has reached the maximum limit of 400 users',
-        });
-      }
-
       // Verificar si el usuario ya existe en este VPS
       const existingUser = await prisma.sSHUser.findUnique({
         where: {
@@ -266,20 +254,6 @@ export class UsersController {
       // Crear usuario en cada VPS
       for (const vps of targetVPS) {
         try {
-          // Verificar límite de usuarios por VPS (máximo 400)
-          const userCount = await prisma.sSHUser.count({
-            where: { vpsId: vps.id },
-          });
-
-          if (userCount >= 400) {
-            errors.push({
-              vpsId: vps.id,
-              vpsName: vps.name,
-              error: 'VPS has reached the maximum limit of 400 users',
-            });
-            continue;
-          }
-
           // Verificar si el usuario ya existe en este VPS
           const existingUser = await prisma.sSHUser.findUnique({
             where: {

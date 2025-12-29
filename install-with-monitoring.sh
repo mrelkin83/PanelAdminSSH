@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ###############################################################################
-# ADMRufu Panel - Instalación con Monitoreo Automático
+# Admin SSH Panel - Instalación con Monitoreo Automático
 # Versión: 2.0
-# Autor: Panel ADMRufu Team
+# Autor: Panel Admin SSH Team
 # Descripción: Script extendido con sistema de monitoreo node_exporter
 ###############################################################################
 
@@ -48,7 +48,7 @@ print_banner() {
     cat << "EOF"
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║          ADMRufu Panel - Instalación Automática          ║
+║        Admin SSH Panel - Instalación Automática          ║
 ║                 Con Monitoreo Integrado                   ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
@@ -381,16 +381,16 @@ README_EOF
 }
 
 ###############################################################################
-# FASE 2: INSTALACIÓN DE ADMRUFU (PLACEHOLDER)
+# FASE 2: INSTALACIÓN DEL PANEL (PLACEHOLDER)
 ###############################################################################
 
-install_admrufu() {
+install_panel() {
     log_info "==============================================="
-    log_info "  FASE 2: Instalación de ADMRufu"
+    log_info "  FASE 2: Instalación del Panel Admin SSH"
     log_info "==============================================="
     echo
 
-    # Aquí iría la instalación normal de ADMRufu
+    # Aquí iría la instalación normal del Panel
     # Por ahora es un placeholder
 
     log_info "Instalando dependencias base..."
@@ -442,8 +442,8 @@ main() {
     # FASE 1: Instalar sistema de monitoreo
     setup_monitoring
 
-    # FASE 2: Instalar ADMRufu (placeholder - integrar con instalación original)
-    # install_admrufu
+    # FASE 2: Instalar Panel Admin SSH (placeholder - integrar con instalación original)
+    # install_panel
 
     # FASE 3: Configuración final
     post_install

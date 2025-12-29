@@ -1,4 +1,4 @@
-# Guía de Instalación y Despliegue - Panel ADMRufu
+# Guía de Instalación y Despliegue - Panel Admin SSH
 
 ## 📋 Requisitos Previos
 
@@ -11,7 +11,7 @@
 
 ### En cada VPS remoto:
 
-- **ADMRufu** instalado y funcionando
+- **SSH Server** habilitado y funcionando
 - **SSH** habilitado (puerto 22 por defecto)
 - **Usuario root** o sudo access
 - **Par de claves SSH** configurado
@@ -21,8 +21,8 @@
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/PanelAdminSSH-AMDRufus.git
-cd PanelAdminSSH-AMDRufus
+git clone https://github.com/tu-usuario/PanelAdminSSH.git
+cd PanelAdminSSH
 ```
 
 ### 2. Configurar Base de Datos PostgreSQL
@@ -53,9 +53,9 @@ Descargar desde https://www.postgresql.org/download/windows/
 sudo -u postgres psql
 
 # Dentro de psql:
-CREATE DATABASE admrufu_panel;
-CREATE USER admrufu_user WITH ENCRYPTED PASSWORD 'tu_password_seguro';
-GRANT ALL PRIVILEGES ON DATABASE admrufu_panel TO admrufu_user;
+CREATE DATABASE adminssh_panel;
+CREATE USER adminssh_user WITH ENCRYPTED PASSWORD 'tu_password_seguro';
+GRANT ALL PRIVILEGES ON DATABASE adminssh_panel TO adminssh_user;
 \q
 ```
 
@@ -78,7 +78,7 @@ nano .env
 
 ```env
 # Database
-DATABASE_URL="postgresql://admrufu_user:tu_password_seguro@localhost:5432/admrufu_panel?schema=public"
+DATABASE_URL="postgresql://adminssh_user:tu_password_seguro@localhost:5432/adminssh_panel?schema=public"
 
 # JWT Secret (generar uno aleatorio)
 JWT_SECRET="tu-secreto-super-seguro-aleatorio-de-32-caracteres-minimo"
@@ -372,8 +372,8 @@ GRANT ALL PRIVILEGES ON DATABASE admrufu_panel TO admrufu_user;
 #### 3. Clonar y configurar proyecto
 
 ```bash
-git clone https://github.com/tu-usuario/PanelAdminSSH-AMDRufus.git
-cd PanelAdminSSH-AMDRufus
+git clone https://github.com/tu-usuario/PanelAdminSSH.git
+cd PanelAdminSSH
 
 # Backend
 cd backend
