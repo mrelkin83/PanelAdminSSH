@@ -1,0 +1,153 @@
+// Prisma Schema para Panel ADMRufu
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Administrador del Panel
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hash bcrypt
+  name      String
+  role      String   @default("admin") // admin, superadmin
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  actionLogs ActionLog[]
+  backups    Backup[]
+
+  @@map("admins")
+}
+
+// Modelo de VPS
+model VPS {
+  id            String   @id @default(cuid())
+  name          String   // Nombre descriptivo del VPS
+  host          String   // IP o dominio
+  port          Int      @default(22)
+  username      String   @default("root")
+  privateKey    String?  // Clave privada SSH (encriptada) - opcional
+  password      String?  // Password SSH (encriptado) - opcional
+  location      String?  // Ubicación geográfica
+  provider      String?  // Proveedor (AWS, DigitalOcean, etc)
+  isActive      Boolean  @default(true)
+  lastCheckAt   DateTime?
+  status        String   @default("unknown") // online, offline, error, unknown
+  version       String?  // Versión de ADMRufu instalada
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  sshUsers      SSHUser[]
+  connections   Connection[]
+  actionLogs    ActionLog[]
+  backups       Backup[]
+
+  @@map("vps")
+}
+
+// Modelo de Usuario SSH creado en VPS
+model SSHUser {
+  id          String    @id @default(cuid())
+  vpsId       String
+  username    String    // Nombre de usuario SSH
+  alias       String?   // Alias para identificación del usuario
+  password    String    // Password (encriptado)
+  expiresAt   DateTime  // Fecha de expiración
+  isBlocked   Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  maxConnections Int?   // Límite de conexiones simultáneas
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relaciones
+  vps         VPS       @relation(fields: [vpsId], references: [id], onDelete: Cascade)
+  connections Connection[]
+  actionLogs  ActionLog[]
+  backups     Backup[]
+
+  @@unique([vpsId, username])
+  @@index([vpsId])
+  @@index([expiresAt])
+  @@map("ssh_users")
+}
+
+// Modelo de Conexión Activa (monitoreo)
+model Connection {
+  id          String   @id @default(cuid())
+  vpsId       String
+  sshUserId   String?
+  username    String   // Usuario conectado
+  ipAddress   String
+  protocol    String?  // SSH, OpenVPN, V2Ray, etc
+  connectedAt DateTime @default(now())
+  disconnectedAt DateTime?
+  bytesIn     BigInt?  @default(0)
+  bytesOut    BigInt?  @default(0)
+
+  // Relaciones
+  vps         VPS      @relation(fields: [vpsId], references: [id], onDelete: Cascade)
+  sshUser     SSHUser? @relation(fields: [sshUserId], references: [id], onDelete: SetNull)
+
+  @@index([vpsId])
+  @@index([sshUserId])
+  @@index([connectedAt])
+  @@map("connections")
+}
+
+// Modelo de Log de Acciones
+model ActionLog {
+  id          String   @id @default(cuid())
+  adminId     String?
+  vpsId       String?
+  sshUserId   String?
+  action      String   // create_user, delete_user, renew_user, block_user, etc
+  status      String   // success, error
+  details     String?  // JSON con detalles de la acción
+  errorMessage String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // Relaciones
+  admin       Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  vps         VPS?     @relation(fields: [vpsId], references: [id], onDelete: SetNull)
+  sshUser     SSHUser? @relation(fields: [sshUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([vpsId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("action_logs")
+}
+
+// Modelo de Backup de Usuarios
+model Backup {
+  id          String   @id @default(cuid())
+  vpsId       String
+  sshUserId   String?
+  adminId     String
+  backupData  String   // JSON con datos del usuario
+  backupType  String   // full, single_user
+  notes       String?
+  createdAt   DateTime @default(now())
+  restoredAt  DateTime?
+
+  // Relaciones
+  vps         VPS      @relation(fields: [vpsId], references: [id], onDelete: Cascade)
+  sshUser     SSHUser? @relation(fields: [sshUserId], references: [id], onDelete: SetNull)
+  admin       Admin    @relation(fields: [adminId], references: [id])
+
+  @@index([vpsId])
+  @@index([createdAt])
+  @@map("backups")
+}
