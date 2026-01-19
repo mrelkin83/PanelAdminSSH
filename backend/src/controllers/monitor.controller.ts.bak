@@ -1,0 +1,491 @@
+import { Request, Response } from 'express';
+import prisma from '../config/database';
+import { ADMRufuService } from '../services/admrufu.service';
+import { MaintenanceService } from '../services/maintenance.service';
+import { decrypt } from '../utils/crypto';
+import { logger } from '../utils/logger';
+import { SSHConfig } from '../types';
+import fs from 'fs';
+import path from 'path';
+
+export class MonitorController {
+  /**
+   * Obtener usuarios conectados en un VPS
+   */
+  static async getConnections(req: Request, res: Response) {
+    try {
+      const { vpsId } = req.query;
+
+      if (!vpsId) {
+        return res.status(400).json({
+          success: false,
+          error: 'VPS ID is required',
+        });
+      }
+
+      const vps = await prisma.vPS.findUnique({
+        where: { id: vpsId as string },
+      });
+
+      if (!vps) {
+        return res.status(404).json({
+          success: false,
+          error: 'VPS not found',
+        });
+      }
+
+      const sshConfig: SSHConfig = {
+        host: vps.host,
+        port: vps.port,
+        username: vps.username,
+      };
+
+      // Descifrar credenciales
+      if (vps.privateKey) {
+        sshConfig.privateKey = decrypt(vps.privateKey);
+      }
+      if (vps.password) {
+        sshConfig.password = decrypt(vps.password);
+      }
+
+      const connections = await ADMRufuService.getConnectedUsers(sshConfig);
+
+      // Guardar conexiones en DB
+      for (const conn of connections) {
+        const user = await prisma.sSHUser.findUnique({
+          where: {
+            vpsId_username: {
+              vpsId: vps.id,
+              username: conn.username,
+            },
+          },
+        });
+
+        // Verificar si ya existe la conexión activa
+        const existingConnection = await prisma.connection.findFirst({
+          where: {
+            vpsId: vps.id,
+            username: conn.username,
+            ipAddress: conn.ipAddress,
+            disconnectedAt: null,
+          },
+        });
+
+        if (!existingConnection) {
+          await prisma.connection.create({
+            data: {
+              vpsId: vps.id,
+              sshUserId: user?.id,
+              username: conn.username,
+              ipAddress: conn.ipAddress,
+              protocol: conn.protocol,
+            },
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        data: connections,
+      });
+    } catch (error: any) {
+      logger.error(`Get connections error: ${error.message}`);
+      return res.status(500).json({
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get connections',
+      });
+    }
+  }
+
+  /**
+   * Obtener estadísticas del dashboard
+   */
+  static async getStats(_req: Request, res: Response) {
+    try {
+      const totalVPS = await prisma.vPS.count();
+      const activeVPS = await prisma.vPS.count({
+        where: { status: 'online' },
+      });
+
+      const totalUsers = await prisma.sSHUser.count();
+      const activeUsers = await prisma.sSHUser.count({
+        where: {
+          isActive: true,
+          isBlocked: false,
+          expiresAt: {
+            gte: new Date(),
+          },
+        },
+      });
+
+      const expiredUsers = await prisma.sSHUser.count({
+        where: {
+          expiresAt: {
+            lt: new Date(),
+          },
+        },
+      });
+
+      const totalConnections = await prisma.connection.count({
+        where: {
+          disconnectedAt: null,
+        },
+      });
+
+      const recentActions = await prisma.actionLog.count({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Últimas 24 horas
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          totalVPS,
+          activeVPS,
+          totalUsers,
+          activeUsers,
+          expiredUsers,
+          totalConnections,
+          recentActions,
+        },
+      });
+    } catch (error: any) {
+      logger.error(`Get stats error: ${error.message}`);
+      return res.status(500).json({
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get stats',
+      });
+    }
+  }
+
+  /**
+   * Obtener historial de conexiones
+   */
+  static async getConnectionHistory(req: Request, res: Response) {
+    try {
+      const { vpsId, username, limit = '50' } = req.query;
+
+      const where: any = {};
+
+      if (vpsId) {
+        where.vpsId = vpsId as string;
+      }
+
+      if (username) {
+        where.username = username as string;
+      }
+
+      const connections = await prisma.connection.findMany({
+        where,
+        include: {
+          vps: {
+            select: {
+              name: true,
+              host: true,
+            },
+          },
+        },
+        orderBy: {
+          connectedAt: 'desc',
+        },
+        take: parseInt(limit as string, 10),
+      });
+
+      return res.json({
+        success: true,
+        data: connections,
+      });
+    } catch (error: any) {
+      logger.error(`Get connection history error: ${error.message}`);
+      return res.status(500).json({
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get connection history',
+      });
+    }
+  }
+
+  /**
+   * Obtener logs de acciones
+   */
+  static async getActionLogs(req: Request, res: Response) {
+    try {
+      const { action, vpsId, limit = '100' } = req.query;
+
+      const where: any = {};
+
+      if (action) {
+        where.action = action as string;
+      }
+
+      if (vpsId) {
+        where.vpsId = vpsId as string;
+      }
+
+      const logs = await prisma.actionLog.findMany({
+        where,
+        include: {
+          admin: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          vps: {
+            select: {
+              name: true,
+            },
+          },
+          sshUser: {
+            select: {
+              username: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: parseInt(limit as string, 10),
+      });
+
+      return res.json({
+        success: true,
+        data: logs,
+      });
+    } catch (error: any) {
+      logger.error(`Get action logs error: ${error.message}`);
+      return res.status(500).json({
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get action logs',
+      });
+    }
+  }
+
+  /**
+   * Limpiar logs de un VPS
+   */
+  static async cleanVPSLogs(req: Request, res: Response) {
+    try {
+      const { vpsId } = req.body;
+
+      if (!vpsId) {
+        return res.status(400).json({
+          success: false,
+          error: 'VPS ID is required',
+        });
+      }
+
+      const vps = await prisma.vPS.findUnique({
+        where: { id: vpsId as string },
+      });
+
+      if (!vps) {
+        return res.status(404).json({
+          success: false,
+          error: 'VPS not found',
+        });
+      }
+
+      const sshConfig: SSHConfig = {
+        host: vps.host,
+        port: vps.port,
+        username: vps.username,
+      };
+
+      if (vps.privateKey) {
+        sshConfig.privateKey = decrypt(vps.privateKey);
+      }
+      if (vps.password) {
+        sshConfig.password = decrypt(vps.password);
+      }
+
+      const result = await MaintenanceService.cleanVPSLogs(sshConfig);
+
+      if (!result.success) {
+        await prisma.actionLog.create({
+          data: {
+            adminId: req.user!.id,
+            vpsId: vps.id,
+            action: 'clean_vps_logs',
+            status: 'error',
+            errorMessage: result.error,
+          },
+        });
+
+        return res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to clean VPS logs',
+        });
+      }
+
+      await prisma.actionLog.create({
+        data: {
+          adminId: req.user!.id,
+          vpsId: vps.id,
+          action: 'clean_vps_logs',
+          status: 'success',
+        },
+      });
+
+      logger.info(`VPS logs cleaned from monitor: ${vps.name}`);
+
+      return res.json({
+        success: true,
+        message: 'VPS logs cleaned successfully',
+      });
+    } catch (error: any) {
+      logger.error(`Clean VPS logs error: ${error.message}`);
+      return res.status(500).json({
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clean VPS logs',
+      });
+    }
+  }
+
+  /**
+   * Reiniciar un VPS
+   */
+  static async restartVPS(req: Request, res: Response) {
+    try {
+      const { vpsId } = req.body;
+
+      if (!vpsId) {
+        return res.status(400).json({
+          success: false,
+          error: 'VPS ID is required',
+        });
+      }
+
+      const vps = await prisma.vPS.findUnique({
+        where: { id: vpsId as string },
+      });
+
+      if (!vps) {
+        return res.status(404).json({
+          success: false,
+          error: 'VPS not found',
+        });
+      }
+
+      const sshConfig: SSHConfig = {
+        host: vps.host,
+        port: vps.port,
+        username: vps.username,
+      };
+
+      if (vps.privateKey) {
+        sshConfig.privateKey = decrypt(vps.privateKey);
+      }
+      if (vps.password) {
+        sshConfig.password = decrypt(vps.password);
+      }
+
+      const result = await MaintenanceService.restartVPS(sshConfig);
+
+      if (!result.success) {
+        await prisma.actionLog.create({
+          data: {
+            adminId: req.user!.id,
+            vpsId: vps.id,
+            action: 'restart_vps',
+            status: 'error',
+            errorMessage: result.error,
+          },
+        });
+
+        return res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to restart VPS',
+        });
+      }
+
+      await prisma.actionLog.create({
+        data: {
+          adminId: req.user!.id,
+          vpsId: vps.id,
+          action: 'restart_vps',
+          status: 'success',
+        },
+      });
+
+      logger.info(`VPS restart initiated from monitor: ${vps.name}`);
+
+      return res.json({
+        success: true,
+        message: 'VPS restart initiated successfully',
+      });
+    } catch (error: any) {
+      logger.error(`Restart VPS error: ${error.message}`);
+      return res.status(500).json({
+      res.status(500).json({
+        success: false,
+        error: 'Failed to restart VPS',
+      });
+    }
+  }
+
+  /**
+   * Limpiar logs de la API
+   */
+  static async cleanAPILogs(req: Request, res: Response) {
+    try {
+      const logsDir = path.join(process.cwd(), 'logs');
+
+      // Verificar si el directorio de logs existe
+      if (!fs.existsSync(logsDir)) {
+        return res.json({
+          success: true,
+          message: 'No logs directory found',
+        });
+      }
+
+      // Leer archivos en el directorio de logs
+      const logFiles = fs.readdirSync(logsDir);
+      let deletedCount = 0;
+
+      // Eliminar archivos de log antiguos (excepto el actual)
+      for (const file of logFiles) {
+        const filePath = path.join(logsDir, file);
+        const stats = fs.statSync(filePath);
+
+        // Eliminar archivos .log más antiguos de 1 día
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        if (stats.mtimeMs < oneDayAgo && file.endsWith('.log')) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      }
+
+      await prisma.actionLog.create({
+        data: {
+          adminId: req.user!.id,
+          action: 'clean_api_logs',
+          status: 'success',
+          details: JSON.stringify({ filesDeleted: deletedCount }),
+        },
+      });
+
+      logger.info(`API logs cleaned: ${deletedCount} files deleted`);
+
+      return res.json({
+        success: true,
+        message: `API logs cleaned successfully. ${deletedCount} files deleted.`,
+      });
+    } catch (error: any) {
+      logger.error(`Clean API logs error: ${error.message}`);
+      return res.status(500).json({
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clean API logs',
+        details: error.message,
+      });
+    }
+  }
+}
